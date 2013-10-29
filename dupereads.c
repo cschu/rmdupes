@@ -157,14 +157,14 @@ void getSequences(struct NATrie * node, char * seq, char * mainseq,
       *(pbuf++) = *(sbuf++);
     }
     *pbuf = 0;
-    fprintf(fpo1, ">UNIQSEQ_%010i_LEN=%i_NSEQS=%i\n%s\n", node->label->seqid, strlen(buffer), node->label->nseqs, buffer);
+    fprintf(fpo1, ">UNIQSEQ_%010i_LEN=%i_NSEQS=%i\n%s\n", node->label->seqid, (int)strlen(buffer), node->label->nseqs, buffer);
     pbuf = buffer;
     ++sbuf;
     while(*sbuf != 0) {
       *(pbuf++) = *(sbuf++);
     }
     *pbuf = 0;
-    fprintf(fpo2, ">UNIQSEQ_%010i_LEN=%i_NSEQS=%i\n%s\n", node->label->seqid, strlen(buffer), node->label->nseqs, buffer);
+    fprintf(fpo2, ">UNIQSEQ_%010i_LEN=%i_NSEQS=%i\n%s\n", node->label->seqid, (int)strlen(buffer), node->label->nseqs, buffer);
   }
   if (NULL != node->A) {
     *(seq++) = 'A'; // set current position to 'A', then increment
@@ -202,7 +202,7 @@ void remove_newline(char * line) {
 
 
 void processReads(struct NATrie * trie, FILE * fp1, FILE * fp2,
-		  FILE * fpo1, FILE * fpo2) {
+		  FILE * fpo1, FILE * fpo2, int nreads) {
   char line1[MAXREADLEN], line2[MAXREADLEN];
   int lct = -1;
   char fqid[MAXREADLEN];
@@ -280,8 +280,9 @@ void processReads(struct NATrie * trie, FILE * fp1, FILE * fp2,
 	  allow_printing = 1;
 	  ++uniqcount;
 #if 1
-	  printf("\r#Unique/Total sequences: %i/%i (%.5f, d=%i)",
-		 uniqcount, readcount, (double)uniqcount/readcount, readcount - uniqcount);
+	  printf("\r#Unique/Processed/Total sequences: %i/%i/%i (%.5f, d=%i, %i%% done.)",
+		 uniqcount, readcount, nreads, (double)uniqcount/readcount, readcount - uniqcount, 
+		 (int)(100*(double)readcount/nreads + 0.5));
 	  fflush(stdout);
 #endif
 	  fprintf(fpo1, "%s\n%s\n", fqid, line1);
@@ -340,6 +341,15 @@ int main(int argc, char * argv[]) {
     printf("File failed to open: %s\n", fn1);
     exit(EXIT_FAILURE);
   }
+  
+  char line[MAXREADLEN];
+  int n_lines = 0;
+  while (1) {
+    if (NULL == fgets(line, sizeof(line), fp1)) { break; }
+    ++n_lines;
+  }
+  rewind(fp1);
+
   if (NULL == fp2) {
     printf("File failed to open: %s\n", fn2);
     exit(EXIT_FAILURE);  
@@ -355,7 +365,7 @@ int main(int argc, char * argv[]) {
   
   struct NATrie * root = (NATrie*) malloc(sizeof(NATrie));
   init(root);
-  processReads(root, fp1, fp2, fpo1, fpo2);
+  processReads(root, fp1, fp2, fpo1, fpo2, n_lines / 4);
 
   fclose(fpo1);
   fclose(fpo2);  
