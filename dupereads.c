@@ -4,6 +4,7 @@
 
 #define DEBUGMODE 0
 #define MAXREADLEN 128
+#define MAXSEQLEN 99
 
 int ALLOW_MODIFY = 1;
 
@@ -31,7 +32,7 @@ int seq_contains_N(char * seq) {
 void cut_string_after_first_space(char *seq) {
   char * lp = seq;
   while(*lp && !isspace(*(lp++))) ;
-  //*(--lp) = 0;    // why --?
+  //was: *(--lp) = 0;    // why --?
   *lp = 0; 
   return ;
 }
@@ -205,28 +206,17 @@ void processReads(struct NATrie * trie, FILE * fp1, FILE * fp2,
   char line1[MAXREADLEN], line2[MAXREADLEN];
   int lct = -1;
   char fqid[MAXREADLEN];
-  int len;
   struct NATrie * lookup_value;
   char seq1[2*MAXREADLEN], seq2[2*MAXREADLEN];
   int allow_printing = 0;
   int readcount = 0;
   int uniqcount = 0;
-  char *lp;
   int n_in_seq = 0;
+  int seqs_with_n = 0;
   
   while (1) {
     if (NULL == fgets(line1, sizeof(line1), fp1)) { break; }
     fgets(line2, sizeof(line2), fp2);
-#if 0
-    len = (int)strlen(line1) - 1;
-    if(line1[len] == '\n') {
-      line1[len] = 0;
-    }
-    len = (int)strlen(line2) - 1;
-    if(line2[len] == '\n') {
-      line2[len] = 0;
-    }
-#endif
     remove_newline(line1);
     remove_newline(line2);
     lct += 1;
@@ -245,57 +235,26 @@ void processReads(struct NATrie * trie, FILE * fp1, FILE * fp2,
 
       cut_string_after_first_space(line1);
       cut_string_after_first_space(line2);
-
-#if 0
-      lp = line1;
-      while(*lp && !isspace(*(lp++))) ;
-      //*(--lp) = 0;    // why --?
-      *lp = 0;
-      lp = line2;
-      while(*lp && !isspace(*(lp++))) ;
-      //*(--lp) = 0;
-      *lp = 0;
-#endif
       
       if (strncmp(line1, line2, strlen(line1))) {
 	printf("ERROR: FastQ identifiers do not match: $%s$ $%s$ %i %i\n", 
-	       line1, line2,strlen(line1), strlen(line2));
+	       line1, line2, (int)strlen(line1), (int)strlen(line2));
 	exit(EXIT_FAILURE);
       }
       sprintf(fqid, line1);
-      //printf("FQID:%s$%i,%i\n", fqid, readcount,uniqcount);
       
     } else if (lct % 4 == 1) {
       // SEQUENCE
-      //printf("L1:%s$\nL2:%s$\n", line1, line2);
-      //exit(EXIT_FAILURE);
-#if 0
-      lp = line1;
-      while(*lp && !n_in_seq) {
-	if (*(lp++) == 'N') {
-	  n_in_seq = 1;
-	  break;
-	}
-      }
-      if (n_in_seq) {
-	continue;
-      }
-      lp = line2;
-      while(*lp && !n_in_seq) {
-	if (*(lp++) == 'N') {
-	  n_in_seq = 1;
-	  break;
-	}
-      }
-      if (n_in_seq) {
+      n_in_seq = seq_contains_N(line1) || seq_contains_N(line2);
+      if (n_in_seq) { 
+	++seqs_with_n;
 	continue; 
       }
-#endif
-      n_in_seq = seq_contains_N(line1) || seq_contains_N(line2);
-      if (n_in_seq) { continue; }
-      //printf("checkpoint %i %i %i\n", strlen(line1), strlen(line2), strlen(line1) + strlen(line2));
-
       ++readcount;
+      
+      if (MAXSEQLEN < strlen(line1)) { line1[MAXSEQLEN] = 0; }
+      if (MAXSEQLEN < strlen(line2)) { line2[MAXSEQLEN] = 0; }
+
 
 #if DEBUGMODE
       printf("Performing FWD-lookup\n");
@@ -345,22 +304,25 @@ void processReads(struct NATrie * trie, FILE * fp1, FILE * fp2,
 
       }
 
-
-
     } else if (!n_in_seq && allow_printing) {
+      if (MAXSEQLEN < strlen(line1)) { line1[MAXSEQLEN] = 0; }
+      if (MAXSEQLEN < strlen(line2)) { line2[MAXSEQLEN] = 0; }
+
       fprintf(fpo1, "%s\n", line1);
       fprintf(fpo2, "%s\n", line2);
       fflush(fpo1);
       fflush(fpo2);
     }      
   } // end while
-  printf("\n");
+  printf("\nDropped %i sequence(s) containing N.\n", seqs_with_n);
+
+  return ;
 }
 
 
 
 
-void main(int argc, char * argv[]) {
+int main(int argc, char * argv[]) {
   
   char *fn1 = argv[1];
   char *fn2 = argv[2];
@@ -479,7 +441,7 @@ void main(int argc, char * argv[]) {
   char * rr = ++r;
   printf("strlen(%s) = %i\n", rr, strlen(rr));
 #endif  
-
+  return 0;
 }
 
 
