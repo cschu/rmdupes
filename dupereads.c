@@ -152,19 +152,19 @@ void getSequences(struct NATrie * node, char * seq, char * mainseq,
   if (NULL != node->label) {
     // node has a label, i.e. a sequence ends here
     *seq = 0; // set current (last) position to 0
-    // printf(">UNIQUE_SEQUENCE_%010i_NSEQS=%i\n%s\n", node->label->seqid, node->label->nseqs, mainseq);
+    // printf(">UNIQUE_SEQUENCE_%010i_NSEQS=%i_LEN=%i\n%s\n", node->label->seqid, node->label->nseqs, mainseq);
     while(*sbuf != ':') {
       *(pbuf++) = *(sbuf++);
     }
     *pbuf = 0;
-    fprintf(fpo1, ">UNIQSEQ_%010i_NSEQS=%i\n%s\n", node->label->seqid, node->label->nseqs, buffer);
+    fprintf(fpo1, ">UNIQSEQ_%010i_LEN=%i_NSEQS=%i\n%s\n", node->label->seqid, strlen(buffer), node->label->nseqs, buffer);
     pbuf = buffer;
     ++sbuf;
     while(*sbuf != 0) {
       *(pbuf++) = *(sbuf++);
     }
     *pbuf = 0;
-    fprintf(fpo2, ">UNIQSEQ_%010i_NSEQS=%i\n%s\n", node->label->seqid, node->label->nseqs, buffer);
+    fprintf(fpo2, ">UNIQSEQ_%010i_LEN=%i_NSEQS=%i\n%s\n", node->label->seqid, strlen(buffer), node->label->nseqs, buffer);
   }
   if (NULL != node->A) {
     *(seq++) = 'A'; // set current position to 'A', then increment
