@@ -213,8 +213,12 @@ void processReads(struct NATrie * trie, FILE * fp1, FILE * fp2,
   int uniqcount = 0;
   int n_in_seq = 0;
   int seqs_with_n = 0;
+  int l1 = 0, l2 = 0;
+  int fq_ok = 1;
+  char c1, c2;
   
   while (1) {
+    fq_ok = 1;
     if (NULL == fgets(line1, sizeof(line1), fp1)) { break; }
     fgets(line2, sizeof(line2), fp2);
     remove_newline(line1);
@@ -226,7 +230,7 @@ void processReads(struct NATrie * trie, FILE * fp1, FILE * fp2,
     printf("LCT:%i (%i)\n", lct, lct % 4);
 #endif
 
-    if (lct % 4 == 0) {
+    if (0 == (lct % 4)) {
       // FASTQID
       n_in_seq = 0;
       if (allow_printing) {
@@ -236,14 +240,33 @@ void processReads(struct NATrie * trie, FILE * fp1, FILE * fp2,
       cut_string_after_first_space(line1);
       cut_string_after_first_space(line2);
       
-      if (strncmp(line1, line2, strlen(line1))) {
-	printf("ERROR: FastQ identifiers do not match: $%s$ $%s$ %i %i\n", 
-	       line1, line2, (int)strlen(line1), (int)strlen(line2));
+      l1 = strlen(line1);
+      l2 = strlen(line2);
+      c1 = line1[l1-1];
+      c2 = line2[l2-1];
+      if (l1 != l2) {
+        fq_ok = 0;
+      } else {
+        if (strncmp(line1, line2, l1)) {
+          if (!((('1' == c1) && ('2' == c2)) || (('2' == c1) && ('1' == c2)))) {
+            fq_ok = 0;
+          }
+            
+          /*if (!((1 == line1[l1-1] && 2 == line2[l2-1]) || (2 == line1[l1-1] && 1 == line2[l2-1]))) {
+            fq_ok = 0;
+          }*/
+        } 
+      }
+ 
+      //if (strncmp(line1, line2, strlen(line1))) {
+      if (0 == fq_ok) {
+	printf("ERROR: FastQ identifiers do not match: $%s$ $%s$ %i %i %c %c\n", 
+	       line1, line2, (int)l1, (int)l2, c1, c2);
 	exit(EXIT_FAILURE);
       }
       sprintf(fqid, line1);
       
-    } else if (lct % 4 == 1) {
+    } else if (1 == (lct % 4)) {
       // SEQUENCE
       n_in_seq = seq_contains_N(line1) || seq_contains_N(line2);
       if (n_in_seq) { 
